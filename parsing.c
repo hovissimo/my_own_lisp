@@ -54,21 +54,11 @@ void lval_print(lval v) {
   switch (v.type) {
     case LVAL_NUM: printf("%f", v.num); break;
     case LVAL_ERR:
-      if (v.err == LERR_UNKNOWN) {
-        printf("Error: Unknown error");
-      }
-      if (v.err == LERR_DIV_ZERO) {
-        printf("Error: Div zero");
-      }
-      if (v.err == LERR_BAD_OP) {
-        printf("Error: Invalid operator");
-      }
-      if (v.err == LERR_BAD_NUM) {
-        printf("Error: Invalid number");
-      }
-      if (v.err == LERR_BAD_ARGS) {
-        printf("Error: Invalid arguments");
-      }
+      if (v.err == LERR_UNKNOWN)  { printf("Error: Unknown error");     }
+      if (v.err == LERR_DIV_ZERO) { printf("Error: Div zero");          }
+      if (v.err == LERR_BAD_OP)   { printf("Error: Invalid operator");  }
+      if (v.err == LERR_BAD_NUM)  { printf("Error: Invalid number");    }
+      if (v.err == LERR_BAD_ARGS) { printf("Error: Invalid arguments"); }
       break;
   }
 }
@@ -90,8 +80,13 @@ int number_of_nodes(mpc_ast_t* node) {
 }
 
 lval eval_number(mpc_ast_t* number_node) {
+  errno = 0; // I think errno is written to by strtof if there's a problem
+
   // integer case
-  if (strstr(number_node->tag, "int")) { return lval_num((double)atof(number_node->contents)); }
+  if (strstr(number_node->tag, "int")) {
+    lval x = lval_num((double)strtof(number_node->contents, NULL));
+    return (errno == ERANGE) ? lval_err(LERR_BAD_NUM) : x;
+  }
 
   // decimal case
   // This node has between 3 and 4 children.
@@ -102,9 +97,9 @@ lval eval_number(mpc_ast_t* number_node) {
     strcat(temp, number_node->children[i]->contents);
     i++;
   }
-  lval result = lval_num(atof(temp));
+  lval result = lval_num(strtof(temp, NULL));
   free(temp);
-  return result;
+  return (errno == ERANGE) ? lval_err(LERR_BAD_NUM) : result;
 }
 
 lval op_add(int count, mpc_ast_t** nodes) {
